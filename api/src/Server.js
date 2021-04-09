@@ -7,7 +7,6 @@ const expressApp = express();
 const router = express.Router();
 const httpServer = http.Server(expressApp);
 const io = socketIO(httpServer, {
-  pingTimeout: 30000, // avoids warning from RN client
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
