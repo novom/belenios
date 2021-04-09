@@ -35,6 +35,7 @@ This project contains a linting config, you should setup `eslint` into your IDE 
 
 Please refer to the [Issues](https://github.com/novom/belenios/issues) section
 if you encounter any problems during development.
+
 Introduction
 ------------
 
