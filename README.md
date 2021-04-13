@@ -1,6 +1,40 @@
-Belenios
+Belenios API
 ========
 
+`master` is **unsafe**, please refer to tags.
+
+An api wrapping the belenios-tool command line.
+
+## Prerequisites
+
+* [Yarn](https://yarnpkg.com/)
+* Refer to the [INSTALL.md](https://github.com/novom/belenios/blob/master/INSTALL.md) file.
+
+## Getting Started
+
+1. From the project root directory, run `yarn` to install dependencies.
+2. Read the compilation instructions provided in [INSTALL.md](https://github.com/novom/belenios/blob/master/INSTALL.md)
+3. Run `yarn setup`.
+4. Run `yarn start`.
+
+## Contributing
+
+**Never** commit directly on master, instead use branches and pull requests.
+
+Once approved, a Pull request is merged in `master` by its author. Also, it must be squashed before merging,
+either manually or using GitHub's `Squash and merge` feature.
+
+You must use the following Style Guides :
+
+* [Airbnb React/JSX Style Guide](https://github.com/airbnb/javascript/tree/master/react)
+* [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript)
+
+This project contains a linting config, you should setup `eslint` into your IDE with `.eslintrc.js`.
+
+## Known Issues
+
+Please refer to the [Issues](https://github.com/novom/belenios/issues) section
+if you encounter any problems during development.
 
 Introduction
 ------------
@@ -15,7 +49,6 @@ verifications. They employ messages formatted in a common format, a
 specification of which is available in doc/specification.tex.
 
 Compilation instructions are provided in INSTALL.md.
-
 
 Election overview
 -----------------
@@ -49,23 +82,6 @@ tool is also the most convenient way to exercise the verifiability
 capabilities of the system.
 
 More information in doc/tool.md.
-
-
-The web server
---------------
-
-The whole process can be executed using the web server. Each step can
-be done with a browser. In this case, the formal "administrator" role
-above is typically shared between the server and a human operator. The
-server can also assume the roles of credential authority and
-trustee. Therefore, in its simplest (and weakest) form, an election
-involves only an operator henceforth called "election administrator"
-(usually distinct from the person who sets up and administrates the
-server itself) and voters. In its strongest form, an election involves
-the election administrator, a credential authority, (at least) two
-trustees and voters.
-
-More information in doc/web.md.
 
 
 Legal
