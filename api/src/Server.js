@@ -2,6 +2,7 @@ import express from 'express';
 import socketIO from 'socket.io';
 import http from 'http';
 import { execFile } from 'child_process';
+import authHelper from './authHelper';
 
 const expressApp = express();
 const router = express.Router();
@@ -25,6 +26,10 @@ expressApp.use('/', router);
 httpServer.listen(3000);
 console.log('hey');
 
+io.use((socket, next) => {
+  authHelper(socket, jwt, next);
+});
+
 io.of('/').on('connection', (socket) => {
   console.log('New client connected');
 
@@ -38,4 +43,6 @@ io.of('/').on('connection', (socket) => {
       callback({ status: 'OK', payload: stdout });
     });
   });
+
+  
 });

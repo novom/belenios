@@ -9,6 +9,7 @@
     "express": "^4.17.1",
     "http": "^0.0.1-security",
     "jsonwebtoken": "^8.5.1",
+    "long-timeout": "^0.1.1",
     "socket.io": "^4.0.1",
     "socket.io-client": "^4.0.1"
   },
