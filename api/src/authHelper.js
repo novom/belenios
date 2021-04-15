@@ -4,53 +4,59 @@ import { setTimeout, clearTimeout } from 'long-timeout';
 const setTokenExpiredTimeout = (socket, tokenExpiration, timeoutHandle) => {
   const theSocket = socket;
   const tokenExpiresIn = (tokenExpiration * 1000) - Date.now();
-  if (tokenExpiresIn < 0) {
-    theSocket.emit('jwtExpired');
-  }
-  const closeHandle = () => clearTimeout(timeoutHandle);
 
   if (theSocket.timeoutHandle) {
     clearTimeout(theSocket.timeoutHandle);
   }
+  const closeHandle = () => clearTimeout(timeoutHandle);
   // eslint-disable-next-line no-param-reassign
   timeoutHandle = setTimeout(() => {
-    theSocket.emit('jwtExpired');
-    theSocket.invitationId = { ...theSocket.auth, invitationId: '' };
+    theSocket.disconnect();
   }, tokenExpiresIn);
+
+  if (theSocket.closeHandle) {
+    theSocket.removeListener('disconnect', theSocket.closeHandle);
+  }
   theSocket.timeoutHandle = timeoutHandle;
-
-  theSocket.removeListener('disconnect', closeHandle);
-
   theSocket.on('disconnect', closeHandle);
+  theSocket.closeHandle = closeHandle;
 };
 
-export default function onDataChannelClientConnected(socket, jwt, next) {
+export default function onDataChannelClientConnected(socket, namespace, next) {
   const theSocket = socket;
   const { authToken } = socket.handshake.auth;
   let timeoutHandle;
 
   theSocket.on('refreshAuthToken', (token, callback) => {
-    jsonwebtoken.verify(token, jwt.secretKey, { algorithms: [jwt.algorithm] }, (err, payload) => {
-      if (err) {
-        console.log(`Error refreshing token: ${err}`);
-        callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN', errMessage: err.message });
-        return;
-      }
-      if (!payload.invitationId) {
-        console.log('Error refreshing token: "The provided token does not have a "invitationId" attribute"');
-        callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN_PAYLOAD', errMessage: 'The token payload should contain a "invitationId" attribute' });
-        return;
-      }
-      theSocket.auth = { ...theSocket.auth, ...payload };
-      if (payload.exp) {
-        setTokenExpiredTimeout(theSocket, payload.exp, timeoutHandle);
-      } else {
-        if (theSocket.timeoutHandle) {
-          clearTimeout(theSocket.timeoutHandle);
+    jsonwebtoken.verify(
+      token,
+      process.env.JWT_SECRET,
+      { algorithms: [process.env.JWT_ALGO] },
+      (err, payload) => {
+        if (err) {
+          console.log(`Error refreshing token: ${err}`);
+          callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN', errMessage: err.message });
+          return;
         }
-        callback({ status: 'OK', role: payload.role });
-      }
-    });
+        if (namespace === 'admin' && !payload.extraPayload.accessScope.event.actions.find((action) => action.match(/^all$|^edit$/))) {
+          callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN_PAYLOAD', errMessage: 'The token payload should contain a "ticketId" attribute' });
+          return;
+        }
+        if (namespace === 'voters' && !payload.extraPayload.ticketId) {
+          callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN_PAYLOAD', errMessage: 'The token payload should contain a "ticketId" attribute' });
+          return;
+        }
+        theSocket.auth = { ...theSocket.auth, ...payload };
+        if (payload.exp) {
+          setTokenExpiredTimeout(theSocket, payload.exp, timeoutHandle);
+        } else {
+          if (theSocket.timeoutHandle) {
+            clearTimeout(theSocket.timeoutHandle);
+          }
+          callback({ status: 'OK', role: payload.role });
+        }
+      },
+    );
   });
 
   if (!authToken) {
@@ -59,17 +65,29 @@ export default function onDataChannelClientConnected(socket, jwt, next) {
     return;
   }
 
-  jsonwebtoken.verify(authToken, jwt.secretKey, { algorithms: [jwt.algorithm] }, (err, payload) => {
-    if (err) {
-      next(err);
-      return;
-    }
-    theSocket.auth = payload;
-    theSocket.auth.anonymous = false;
+  jsonwebtoken.verify(
+    authToken,
+    process.env.JWT_SECRET,
+    { algorithms: [process.env.JWT_ALGO] },
+    (err, payload) => {
+      if (err) {
+        next(err);
+        return;
+      }
+      if (namespace === 'admin' && !payload.extraPayload.accessScope.event.actions.find((action) => action.match(/^all$|^edit$/))) {
+        next(new Error('The token payload should contain a "ticketId" attribute'));
+        return;
+      }
+      if (namespace === 'voters' && !payload.extraPayload.ticketId) {
+        next(new Error('The token payload should contain a "ticketId" attribute'));
+        return;
+      }
 
-    if (payload.exp) {
-      setTokenExpiredTimeout(theSocket, payload.exp, timeoutHandle);
-    }
-    next();
-  });
+      theSocket.auth = payload;
+      if (payload.exp) {
+        setTokenExpiredTimeout(theSocket, payload.exp, timeoutHandle);
+      }
+      next();
+    },
+  );
 }

@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "start": "nodemon --watch api --exec babel-node api/src/Server",
-    "start:client": "nodemon --watch api --exec babel-node api/src/Client",
+    "start": "JWT_SECRET='hii' JWT_ALGO='HS256' nodemon --watch api --exec babel-node api/src/Server",
+    "start:client": "JWT_SECRET='hii' JWT_ALGO='HS256' nodemon --watch api --exec babel-node api/src/Client",
     "setup": "make && mkdir elections",
     "wipeout": "rm -r elections/*"
   },

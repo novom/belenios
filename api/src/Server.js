@@ -24,13 +24,12 @@ const io = socketIO(httpServer, {
 expressApp.use('/', router);
 
 httpServer.listen(3000);
-console.log('hey');
 
-io.use((socket, next) => {
-  authHelper(socket, jwt, next);
+io.of('/admin').use((socket, next) => {
+  authHelper(socket, 'admin', next);
 });
 
-io.of('/').on('connection', (socket) => {
+io.of('/admin').on('connection', (socket) => {
   console.log('New client connected');
 
   socket.on('create-election', (callback) => {
@@ -43,6 +42,12 @@ io.of('/').on('connection', (socket) => {
       callback({ status: 'OK', payload: stdout });
     });
   });
+});
 
-  
+io.of('/voters').use((socket, next) => {
+  authHelper(socket, 'voters', next);
+});
+
+io.of('/voters').on('connection', (socket) => {
+  console.log(socket.auth);
 });
