@@ -11,6 +11,7 @@ const setTokenExpiredTimeout = (socket, tokenExpiration, timeoutHandle) => {
   const closeHandle = () => clearTimeout(timeoutHandle);
   // eslint-disable-next-line no-param-reassign
   timeoutHandle = setTimeout(() => {
+    theSocket.role = '';
     theSocket.disconnect();
   }, tokenExpiresIn);
 
@@ -18,8 +19,8 @@ const setTokenExpiredTimeout = (socket, tokenExpiration, timeoutHandle) => {
     theSocket.removeListener('disconnect', theSocket.closeHandle);
   }
   theSocket.timeoutHandle = timeoutHandle;
-  theSocket.on('disconnect', closeHandle);
   theSocket.closeHandle = closeHandle;
+  theSocket.on('disconnect', closeHandle);
 };
 
 export default function onDataChannelClientConnected(socket, namespace, next) {
@@ -38,30 +39,27 @@ export default function onDataChannelClientConnected(socket, namespace, next) {
           callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN', errMessage: err.message });
           return;
         }
-        if (namespace === 'admin' && !payload.extraPayload.accessScope.event.actions.find((action) => action.match(/^all$|^edit$/))) {
-          callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN_PAYLOAD', errMessage: 'The token payload should contain a "ticketId" attribute' });
+        if (theSocket.role === 'admin' && !payload.extraPayload?.accessScope?.event?.action?.find((action) => action.match(/^all$|^edit$/))) {
+          callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN_PAYLOAD', errMessage: 'The admin token should contain a "extraPayload.accessScope.event.action" attribute' });
           return;
         }
-        if (namespace === 'voters' && !payload.extraPayload.ticketId) {
-          callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN_PAYLOAD', errMessage: 'The token payload should contain a "ticketId" attribute' });
+        if (theSocket.role === 'voter' && !payload.extraPayload?.ticketId) {
+          callback({ status: 'FAILED', errCode: 'INVALID_AUTH_TOKEN_PAYLOAD', errMessage: 'The token should contain a "extraPayload.ticketId" attribute' });
           return;
         }
         theSocket.auth = { ...theSocket.auth, ...payload };
         if (payload.exp) {
           setTokenExpiredTimeout(theSocket, payload.exp, timeoutHandle);
-        } else {
-          if (theSocket.timeoutHandle) {
-            clearTimeout(theSocket.timeoutHandle);
-          }
-          callback({ status: 'OK', role: payload.role });
+        } else if (theSocket.timeoutHandle) {
+          clearTimeout(theSocket.timeoutHandle);
         }
+        callback({ status: 'OK', role: theSocket.role });
       },
     );
   });
 
   if (!authToken) {
-    console.log('Client failed to authenticate: "Missing an authentication token"');
-    next(new Error('The current server does not allow anonymous client to connect. Please provide a valid JWT. Your client instance will be disconnected.'));
+    next(new Error('The Belenios API requires a valid JWT. Your client instance will be disconnected.'));
     return;
   }
 
@@ -74,15 +72,18 @@ export default function onDataChannelClientConnected(socket, namespace, next) {
         next(err);
         return;
       }
-      if (namespace === 'admin' && !payload.extraPayload.accessScope.event.actions.find((action) => action.match(/^all$|^edit$/))) {
-        next(new Error('The token payload should contain a "ticketId" attribute'));
-        return;
-      }
-      if (namespace === 'voters' && !payload.extraPayload.ticketId) {
-        next(new Error('The token payload should contain a "ticketId" attribute'));
+
+      if (namespace === 'admin' && !payload?.extraPayload?.accessScope?.event?.action?.find((action) => action.match(/^all$|^edit$/))) {
+        next(new Error('The admin token should contain a "extraPayload.accessScope.event.action" attribute'));
         return;
       }
 
+      if (namespace === 'voter' && !payload?.extraPayload?.ticketId) {
+        next(new Error('The token should contain a "extraPayload.ticketId" attribute'));
+        return;
+      }
+
+      theSocket.role = namespace;
       theSocket.auth = payload;
       if (payload.exp) {
         setTokenExpiredTimeout(theSocket, payload.exp, timeoutHandle);
