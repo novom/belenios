@@ -30,7 +30,7 @@ io.of('/admin').use((socket, next) => {
 });
 
 io.of('/admin').on('connection', (socket) => {
-  console.log('New client connected');
+  console.log('New admin connected');
 
   socket.on('create-election', (callback) => {
     console.log('Creating election');
@@ -44,10 +44,10 @@ io.of('/admin').on('connection', (socket) => {
   });
 });
 
-io.of('/voters').use((socket, next) => {
-  authHelper(socket, 'voters', next);
+io.of('/voter').use((socket, next) => {
+  authHelper(socket, 'voter', next);
 });
 
-io.of('/voters').on('connection', (socket) => {
-  console.log(socket.auth);
+io.of('/voter').on('connection', (socket) => {
+  console.log('New voter connected');
 });
