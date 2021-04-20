@@ -16,6 +16,7 @@ const socket = io('http://localhost:3000/voters', {
 
 socket.on('connect_error', (err) => {
   console.log(err);
+  socket.disconnect();
 });
 
 socket.on('connect', () => {
