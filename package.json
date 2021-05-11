@@ -1,7 +1,11 @@
 {
+  "name": "@novom/belenios-api",
+  "version": "0.0.0",
+  "description": "A server API wrapping the belenios-tool command-line tool",
   "scripts": {
-    "start": "nodemon --watch api --exec babel-node api/src/Server",
-    "start:client": "nodemon --watch api --exec babel-node api/src/Client",
+    "start": "JWT_SECRET='hii' JWT_ALGO='HS256' nodemon --watch api --exec babel-node api/src/Server",
+    "start:voterClient": "JWT_SECRET='hii' JWT_ALGO='HS256' nodemon --watch api --exec babel-node api/src/examples/VoterClient",
+    "start:adminClient": "JWT_SECRET='hii' JWT_ALGO='HS256' nodemon --watch api --exec babel-node api/src/examples/AdminClient",
     "setup": "make && mkdir elections",
     "wipeout": "rm -r elections/*"
   },
@@ -9,6 +13,7 @@
     "express": "^4.17.1",
     "http": "^0.0.1-security",
     "jsonwebtoken": "^8.5.1",
+    "long-timeout": "^0.1.1",
     "socket.io": "^4.0.1",
     "socket.io-client": "^4.0.1"
   },

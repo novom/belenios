@@ -2,6 +2,7 @@ import express from 'express';
 import socketIO from 'socket.io';
 import http from 'http';
 import { execFile } from 'child_process';
+import authHelper from './authHelper';
 
 const expressApp = express();
 const router = express.Router();
@@ -23,10 +24,13 @@ const io = socketIO(httpServer, {
 expressApp.use('/', router);
 
 httpServer.listen(3000);
-console.log('hey');
 
-io.of('/').on('connection', (socket) => {
-  console.log('New client connected');
+io.of('/admin').use((socket, next) => {
+  authHelper(socket, 'admin', next);
+});
+
+io.of('/admin').on('connection', (socket) => {
+  console.log('New admin connected');
 
   socket.on('create-election', (callback) => {
     console.log('Creating election');
@@ -38,4 +42,12 @@ io.of('/').on('connection', (socket) => {
       callback({ status: 'OK', payload: stdout });
     });
   });
+});
+
+io.of('/voter').use((socket, next) => {
+  authHelper(socket, 'voter', next);
+});
+
+io.of('/voter').on('connection', (socket) => {
+  console.log('New voter connected');
 });
