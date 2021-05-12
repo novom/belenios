@@ -32,6 +32,10 @@ socket.on('connect', () => {
       },
     ), ({ status, errCode, errMessage }) => { console.log(errMessage) });
   }, 8000);
+
+  socket.emit('join-election', 'testElection', ({ status, errMessage }) => {
+    console.log(status);
+  });
 });
 
 socket.on('disconnect', () => {

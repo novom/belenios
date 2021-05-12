@@ -24,9 +24,16 @@ socket.on('connect', () => {
   socket.emit('create-election', ({ status, payload, error }) => {
     if (status === 'OK') {
       console.log(payload);
-      return;
+
+      socket.emit('set-voters', [{ id: 'bob', weight: 1 }, { id: 'bobby', weight: 3 }], payload, (setVoters) => {
+        console.log('setVoters', setVoters);
+        socket.emit('verify-voters', payload, (verifyVoters) => {
+          console.log('verifyVoters', verifyVoters);
+        });
+      });
+    } else {
+      console.log('what', error);
     }
-    console.log(error);
   });
 
   setInterval(() => {
@@ -37,7 +44,7 @@ socket.on('connect', () => {
         algorithm: process.env.JWT_ALGO,
         expiresIn: 10,
       },
-    ), ({ status, errCode, errMessage }) => { console.log(errMessage); });
+    ), ({ status, errCode, errMessage }) => { console.log(status); });
   }, 8000);
 });
 
