@@ -1,12 +1,13 @@
 import express from 'express';
 import socketIO from 'socket.io';
 import http from 'http';
-import { execFile } from 'child_process';
 import fs from 'fs';
 import readLine from 'readline';
 import { once } from 'events';
 
+import { execFile } from 'child_process';
 import authHelper from './authHelper';
+import { createElection } from './lib/beleniosWrapper';
 
 const expressApp = express();
 const router = express.Router();
@@ -29,7 +30,7 @@ expressApp.use('/', router);
 
 httpServer.listen(3000);
 
-const electionDir = 'elections';
+const electionsDir = 'elections';
 
 const lockedVotersList = [];
 
@@ -40,23 +41,14 @@ io.of('/admin').use((socket, next) => {
 io.of('/admin').on('connection', (socket) => {
   console.log('New admin connected');
 
-  socket.on('create-election', (callback) => {
-    console.log('Creating election');
-    execFile('api/src/scripts/createElection.sh', (error, stdout) => {
-      if (error) {
-        callback({ status: 'FAILED', error });
-        return;
-      }
-      callback({ status: 'OK', payload: stdout });
-    });
-  });
+  socket.on('create-election', (callback) => createElection(callback));
 
-  socket.on('set-voters', (voters, electionId, callback) => {
+  socket.on('set-voters', (electionId, voters, callback) => {
     if (lockedVotersList.includes(electionId)) {
       callback({ status: 'FAILED', error: new Error('The voters list for this election has been locked.') });
       return;
     }
-    fs.stat(`${electionDir}/${electionId}`, (error, stats) => {
+    fs.stat(`${electionsDir}/${electionId}`, (error, stats) => {
       if (error) {
         callback({ status: 'FAILED', error });
         return;
@@ -64,7 +56,7 @@ io.of('/admin').on('connection', (socket) => {
       if (stats.isDirectory()) {
         const voterList = voters.reduce((acc, curr) => acc.concat(curr.id, ',', curr.weight, '\n'), '');
         console.log(voterList);
-        fs.writeFile(`${electionDir}/${electionId}/voters.txt`, voterList, (err) => {
+        fs.writeFile(`${electionsDir}/${electionId}/voters.txt`, voterList, (err) => {
           if (err) {
             callback({ status: 'FAILED', error: err });
             return;
@@ -74,10 +66,9 @@ io.of('/admin').on('connection', (socket) => {
       }
     });
   });
-
   socket.on('verify-voters', async (electionId, callback) => {
     try {
-      const readStream = fs.createReadStream(`${electionDir}/${electionId}/voters.txt`);
+      const readStream = fs.createReadStream(`${electionsDir}/${electionId}/voters.txt`);
       const lineReader = readLine.createInterface({ input: readStream });
 
       const voterArray = [];
@@ -97,35 +88,54 @@ io.of('/admin').on('connection', (socket) => {
   });
 
   socket.on('lock-voters', (electionId, callback) => {
-    fs.stat(`${electionDir}/${electionId}/voters.txt`, (error, stats) => {
+    const electionDir = `${electionsDir}/${electionId}`;
+    const votersDir = `${electionDir}/voters.txt`;
+
+    fs.stat(votersDir, (error, stats) => {
       if (error) {
         callback({ status: 'FAILED', error });
       }
       if (stats.isFile()) {
         lockedVotersList.push(electionId);
-        callback({ status: 'OK' });
+        execFile('api/src/scripts/makeTrustees.sh', [electionId, votersDir, electionDir], (error, stdout) => {
+          if (error) {
+            callback({ status: 'FAILED', error });
+            return;
+          }
+          callback({ status: 'OK', payload: stdout });
+        });
+      } else {
+        callback({ status: 'FAILED', error: new Error(`${electionId} is not an ongoing election`) });
       }
-      callback({ status: 'FAILED', error: new Error(`${electionId} is not an ongoing election`) });
     });
   });
 
   socket.on('make-election', (electionId, template, callback) => {
-    fs.stat(`${electionDir}/${electionId}`, (error, stats) => {
+    const electionDir = `${electionsDir}/${electionId}`;
+    const groupFilePath = 'files/groups/default.json';
+
+    fs.stat(electionDir, (error, stats) => {
       if (error) {
         callback({ status: 'FAILED', error });
       }
       if (stats.isDirectory()) {
-        console.log(template);
-        fs.writeFile(`${electionDir}/${electionId}/template.json`, template, (err) => {
+        const templateFilePath = `${electionDir}/template.json`;
+        fs.writeFile(templateFilePath, template, (err) => {
           if (err) {
             callback({ status: 'FAILED', error: err });
             return;
           }
-          callback({ status: 'OK' });
+          execFile('api/src/scripts/makeElection.sh', [electionId, templateFilePath, groupFilePath, electionDir], (er, stdout) => {
+            if (er) {
+              callback({ status: 'FAILED', er });
+              return;
+            }
+            callback({ status: 'OK' });
+          });
         });
-        callback({ status: 'OK' });
+      } else {
+        callback({ status: 'FAILED', error: new Error(`${electionId} is not an ongoing election`) });
       }
-      callback({ status: 'FAILED', error: new Error(`${electionId} is not an ongoing election`) });
     });
   });
 });
@@ -138,7 +148,7 @@ io.of('/voter').on('connection', (socket) => {
   console.log('New voter connected');
 
   socket.on('join-election', (electionId, callback) => {
-    fs.stat(`${electionDir}/${electionId}`, (error, stats) => {
+    fs.stat(`${electionsDir}/${electionId}`, (error, stats) => {
       if (error) {
         callback({ status: 'FAILED', error });
       }
