@@ -5,5 +5,4 @@ belenios-tool () {
 }
 
 UUID=`belenios-tool generate-token`
-mkdir elections/$UUID
 echo -n $UUID
